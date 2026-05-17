@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Set Hugging Face cache directory to a local path within the app workspace
+ENV HF_HOME=/app/.hf_cache
+
 # Pre-download SentenceTransformer model weights so they are baked into the image
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 

@@ -12,3 +12,5 @@ services:
         value: llama-3.3-70b-versatile
       - key: PORT
         value: 8000
+      - key: HF_HOME
+        value: /app/.hf_cache
