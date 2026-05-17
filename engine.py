@@ -125,7 +125,16 @@ async def _call_llm(
     for msg in conversation_messages[:-1]:
         # Groq expects assistant role (not model)
         role = "assistant" if msg.role == "assistant" else "user"
-        messages.append({"role": role, "content": msg.content})
+        content = msg.content
+        if role == "assistant":
+            try:
+                # If history message is the raw JSON, extract only the text reply to save tokens
+                parsed_json = json.loads(msg.content)
+                if isinstance(parsed_json, dict) and "reply" in parsed_json:
+                    content = parsed_json["reply"]
+            except Exception:
+                pass
+        messages.append({"role": role, "content": content})
 
     messages.append({"role": "user", "content": last_user_message})
 
