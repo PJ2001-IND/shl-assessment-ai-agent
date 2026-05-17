@@ -1,7 +1,7 @@
 # SHL Assessment Recommendation Agent — Approach Document
 
 **Submission for:** SHL AI Intern Assignment
-**Stack:** Python · FastAPI · Groq Llama 3.3 70B · Local SentenceTransformers · FAISS · Render
+**Stack:** Python · FastAPI · Groq Llama 3 (Llama 3.1 8B / 3.3 70B) · Local SentenceTransformers · FAISS · Render
 
 ---
 
@@ -11,7 +11,7 @@
 
 **Stateless architecture.** Each `POST /chat` call receives the full conversation history and re-derives all context on the fly. This simplifies deployment (no session store, no race conditions) and matches the assignment spec exactly.
 
-**Single LLM call per turn.** Rather than a separate intent-classification pass followed by a generation pass, I combined both into one Groq Llama 3.3 call. The system prompt instructs the model to decide whether to clarify, recommend, refine, or refuse—and output structured JSON directly. This keeps latency well under the 30-second budget (~1–2 s per turn in practice).
+**Single LLM call per turn.** Rather than a separate intent-classification pass followed by a generation pass, I combined both into one Groq Llama 3 call. The system prompt instructs the model to decide whether to clarify, recommend, refine, or refuse—and output structured JSON directly. This keeps latency well under the 30-second budget (~1–2 s per turn in practice).
 
 **Strict catalog grounding.** Every name and URL the LLM outputs is validated post-generation against the FAISS-indexed catalog using fuzzy name matching. Invalid recommendations are silently dropped before the response is returned. This makes hallucination impossible to slip through to the evaluator.
 
@@ -60,7 +60,7 @@ Two anchor assessments (OPQ32r and Verify G+) are always appended to the retriev
 - Injecting all 377 assessments: exceeded context limits and confused the model; top-25 retrieval was much better
 - Empty recommendations array instead of `null`: broke the evaluator's schema check (fixed by explicitly using `null`)
 
-**AI tools used:** Claude Sonnet (agentic coding for boilerplate generation and debugging); Groq Llama 3.3 (LLM backbone); SentenceTransformers (local embeddings); manual review of all 10 sample conversations to derive ground-truth and calibrate prompts.
+**AI tools used:** Claude Sonnet (agentic coding for boilerplate generation and debugging); Groq Llama 3 (LLM backbone); SentenceTransformers (local embeddings); manual review of all 10 sample conversations to derive ground-truth and calibrate prompts.
 
 ---
 
