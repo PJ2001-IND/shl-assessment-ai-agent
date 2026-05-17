@@ -147,7 +147,7 @@ async def _call_llm(
                 model=GROQ_MODEL,
                 messages=messages,
                 temperature=0.2,
-                max_tokens=4096,
+                max_tokens=1024,
                 response_format={"type": "json_object"},  # Force JSON output
             )
             return response.choices[0].message.content
