@@ -16,12 +16,12 @@ import logging
 import re
 from typing import Any
 
-import google.generativeai as genai
+from groq import AsyncGroq
 
 from catalog import catalog_index
 from config import (
-    GEMINI_API_KEY,
-    GEMINI_MODEL,
+    GROQ_API_KEY,
+    GROQ_MODEL,
     LLM_TIMEOUT_SECONDS,
     MAX_RECOMMENDATIONS,
     MAX_TURNS,
@@ -104,68 +104,55 @@ def _build_search_query(messages: list, last_user_msg: str) -> str:
 
 # ── LLM Call ──────────────────────────────────────────────────────────────
 
-def _configure_gemini() -> genai.GenerativeModel:
-    """Configure and return a Gemini generative model."""
-    genai.configure(api_key=GEMINI_API_KEY)
-    return genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=genai.GenerationConfig(
-            temperature=0.2,        # Low temperature for factual, grounded responses
-            top_p=0.9,
-            max_output_tokens=4096,
-            response_mime_type="application/json",  # Force JSON output
-        ),
-    )
+def _configure_groq() -> AsyncGroq:
+    """Configure and return an AsyncGroq client."""
+    return AsyncGroq(api_key=GROQ_API_KEY)
 
 
 async def _call_llm(
-    model: genai.GenerativeModel,
+    client: AsyncGroq,
     system_prompt: str,
     conversation_messages: list,
     last_user_message: str,
 ) -> str:
     """
-    Call Gemini with the full conversation history.
+    Call Groq (Llama 3) with the full conversation history.
     Returns the raw text response.
     """
-    # Build Gemini chat history from prior messages (excluding the last user turn)
-    history = []
-    messages_for_history = conversation_messages[:-1]  # exclude last user msg
+    # Build messages array for Groq (matches OpenAI chat standard)
+    messages = [{"role": "system", "content": system_prompt}]
 
-    for msg in messages_for_history:
-        role = "user" if msg.role == "user" else "model"
-        history.append({"role": role, "parts": [msg.content]})
+    for msg in conversation_messages[:-1]:
+        # Groq expects assistant role (not model)
+        role = "assistant" if msg.role == "assistant" else "user"
+        messages.append({"role": role, "content": msg.content})
 
-    # Send system prompt + last user message together
-    combined_message = f"{system_prompt}\n\n---\nUser's current message: {last_user_message}"
+    messages.append({"role": "user", "content": last_user_message})
 
-    logger.info(f"DEBUG: Using API Key starting with: '{GEMINI_API_KEY[:5]}'...")
+    logger.info(f"DEBUG: Using Groq API Key starting with: '{GROQ_API_KEY[:5]}'...")
 
-    loop = asyncio.get_event_loop()
     max_retries = 3
-
     for attempt in range(max_retries):
         try:
-            # Create chat session with history anew on each attempt
-            chat = model.start_chat(history=history)
-            response = await loop.run_in_executor(
-                None,
-                lambda: chat.send_message(combined_message),
+            response = await client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=messages,
+                temperature=0.2,
+                max_tokens=4096,
+                response_format={"type": "json_object"},  # Force JSON output
             )
-            return response.text
+            return response.choices[0].message.content
         except Exception as e:
             error_str = str(e)
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            if "429" in error_str or "rate_limit" in error_str or "limit" in error_str.lower():
                 if attempt == max_retries - 1:
-                    logger.error(f"LLM rate limit max retries reached: {e}")
+                    logger.error(f"Groq rate limit max retries reached: {e}")
                     raise
-                # Parse retry_delay from error message if available
-                delay_match = re.search(r"retry in (\d+\.?\d*)", error_str, re.IGNORECASE)
-                wait = float(delay_match.group(1)) + 2 if delay_match else (10.0 * (2 ** attempt))
-                logger.warning(f"Rate limited in chat. Waiting {wait:.1f}s...")
+                wait = 2.0 * (2 ** attempt)
+                logger.warning(f"Groq Rate limited. Waiting {wait:.1f}s...")
                 await asyncio.sleep(wait)
             else:
-                logger.error(f"Non-retriable LLM error: {e}")
+                logger.error(f"Non-retriable Groq error: {e}")
                 raise
 
 
@@ -377,12 +364,12 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
     )
 
     # ── Call LLM with timeout ───────────────────────────────────────────────
-    model = _configure_gemini()
+    client = _configure_groq()
 
     try:
         raw_response = await asyncio.wait_for(
             _call_llm(
-                model=model,
+                client=client,
                 system_prompt=system_prompt,
                 conversation_messages=request.messages,
                 last_user_message=last_user_msg,
