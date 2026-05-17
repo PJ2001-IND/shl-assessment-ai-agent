@@ -19,15 +19,11 @@ from typing import Optional
 
 import faiss
 import numpy as np
-import google.generativeai as genai
+from sentence_transformers import SentenceTransformer
 
 from config import (
     CATALOG_PATH,
     EMBEDDINGS_CACHE_PATH,
-    GEMINI_API_KEY,
-    EMBEDDING_MODEL,
-    EMBEDDING_TASK_TYPE,
-    QUERY_EMBEDDING_TASK_TYPE,
     KEY_TO_CODE,
     SIMILARITY_TOP_K,
 )
@@ -113,66 +109,31 @@ def _normalize_record(raw: dict) -> AssessmentRecord:
 
 # ── Embedding Helpers ──────────────────────────────────────────────────────
 
-def _embed_texts(texts: list[str], task_type: str = EMBEDDING_TASK_TYPE) -> np.ndarray:
+_model = None
+
+def _get_model() -> SentenceTransformer:
+    global _model
+    if _model is None:
+        logger.info("Initializing local SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')...")
+        _model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    return _model
+
+
+def _embed_texts(texts: list[str]) -> np.ndarray:
     """
-    Generate embeddings for a list of texts using Gemini embedding API.
-
-    Free tier limit: 100 requests/minute where each item = 1 request.
-    Strategy: embed one item at a time with 0.65s sleep → ~92 items/min.
-    On 429, parse retry_delay and wait accordingly.
-    Returns numpy array of shape (len(texts), embedding_dim).
+    Generate embeddings for a list of texts using local SentenceTransformer.
+    Runs 100% offline and extremely fast.
     """
-    genai.configure(api_key=GEMINI_API_KEY)
-    all_embeddings = []
-    INTER_REQUEST_SLEEP = 0.65  # seconds — keeps us safely under 100 RPM
-
-    for i, text in enumerate(texts):
-        if i % 20 == 0:
-            logger.info(f"  Embedding {i + 1}/{len(texts)}...")
-
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                result = genai.embed_content(
-                    model=EMBEDDING_MODEL,
-                    content=text,
-                    task_type=task_type,
-                )
-                embedding = result["embedding"]
-                all_embeddings.append(embedding)
-                break  # success
-
-            except Exception as e:
-                error_str = str(e)
-                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                    # Parse retry_delay from error message if available
-                    delay_match = re.search(r"retry in (\d+\.?\d*)", error_str, re.IGNORECASE)
-                    wait = float(delay_match.group(1)) + 5 if delay_match else 65.0
-                    logger.warning(f"  Rate limited on item {i + 1}. Waiting {wait:.0f}s...")
-                    time.sleep(wait)
-                    # retry
-                elif attempt == max_retries - 1:
-                    logger.error(f"  Failed to embed item {i + 1} after {max_retries} attempts: {e}")
-                    raise
-                else:
-                    time.sleep(2 ** attempt)
-
-        # Pace requests to stay under rate limit
-        time.sleep(INTER_REQUEST_SLEEP)
-
-    return np.array(all_embeddings, dtype="float32")
+    model = _get_model()
+    embeddings = model.encode(texts, show_progress_bar=False, convert_to_numpy=True)
+    return embeddings.astype("float32")
 
 
 def _embed_query(query: str) -> np.ndarray:
-    """Generate embedding for a single search query."""
-    genai.configure(api_key=GEMINI_API_KEY)
-    result = genai.embed_content(
-        model=EMBEDDING_MODEL,
-        content=query,
-        task_type=QUERY_EMBEDDING_TASK_TYPE,
-    )
-    vec = np.array(result["embedding"], dtype="float32")
-    return vec.reshape(1, -1)
+    """Generate embedding for a single search query locally."""
+    model = _get_model()
+    vec = model.encode([query], show_progress_bar=False, convert_to_numpy=True)
+    return vec.astype("float32").reshape(1, -1)
 
 
 def _normalize_vectors(vecs: np.ndarray) -> np.ndarray:

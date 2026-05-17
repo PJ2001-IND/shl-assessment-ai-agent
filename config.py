@@ -14,13 +14,8 @@ EMBEDDINGS_CACHE_PATH = BASE_DIR / ".embeddings_cache.npy"
 INDEX_CACHE_PATH = BASE_DIR / ".faiss_index.bin"
 
 # ── LLM / Embedding ────────────────────────────────────────────────────────
-GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-specdec")
-EMBEDDING_MODEL: str = "models/gemini-embedding-001"
-EMBEDDING_TASK_TYPE: str = "retrieval_document"
-QUERY_EMBEDDING_TASK_TYPE: str = "retrieval_query"
 
 # ── Retrieval ──────────────────────────────────────────────────────────────
 SIMILARITY_TOP_K: int = 25          # Fetch more from FAISS, then filter/rank

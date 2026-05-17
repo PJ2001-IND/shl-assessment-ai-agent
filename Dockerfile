@@ -12,11 +12,14 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download SentenceTransformer model weights so they are baked into the image
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
 # Copy application code
 COPY . .
 
-# Expose port (7860 is standard for Hugging Face Spaces)
-EXPOSE 7860
+# Expose port (8000 for Render)
+EXPOSE 8000
 
 # Run with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1", "--log-level", "info"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info"]

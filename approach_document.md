@@ -1,7 +1,7 @@
 # SHL Assessment Recommendation Agent — Approach Document
 
 **Submission for:** SHL AI Intern Assignment
-**Stack:** Python · FastAPI · Google Gemini 2.0 Flash · FAISS · Render
+**Stack:** Python · FastAPI · Groq Llama 3.3 70B · Local SentenceTransformers · FAISS · Render
 
 ---
 
@@ -11,7 +11,7 @@
 
 **Stateless architecture.** Each `POST /chat` call receives the full conversation history and re-derives all context on the fly. This simplifies deployment (no session store, no race conditions) and matches the assignment spec exactly.
 
-**Single LLM call per turn.** Rather than a separate intent-classification pass followed by a generation pass, I combined both into one Gemini call. The system prompt instructs the model to decide whether to clarify, recommend, refine, or refuse—and output structured JSON directly. This keeps latency well under the 30-second budget (~3–5 s per turn in practice).
+**Single LLM call per turn.** Rather than a separate intent-classification pass followed by a generation pass, I combined both into one Groq Llama 3.3 call. The system prompt instructs the model to decide whether to clarify, recommend, refine, or refuse—and output structured JSON directly. This keeps latency well under the 30-second budget (~1–2 s per turn in practice).
 
 **Strict catalog grounding.** Every name and URL the LLM outputs is validated post-generation against the FAISS-indexed catalog using fuzzy name matching. Invalid recommendations are silently dropped before the response is returned. This makes hallucination impossible to slip through to the evaluator.
 
@@ -19,9 +19,9 @@
 
 ## 2. Retrieval Setup
 
-**Embeddings.** All 377 assessments are embedded using Gemini `text-embedding-004`. Each assessment's searchable text combines its name, description, job levels, languages, test type keys, duration, and adaptive flag into a single document string. Embeddings are cached to disk (`.embeddings_cache.npy`) so restarts are fast.
+**Embeddings.** All 377 assessments are embedded using the local offline **SentenceTransformers (`all-MiniLM-L6-v2`)** model. Each assessment's searchable text combines its name, description, job levels, languages, test type keys, duration, and adaptive flag into a single document string. Embeddings are cached to disk (`.embeddings_cache.npy`) and baked directly into the Docker image so cold starts are instant and run 100% offline with zero external network API dependencies.
 
-**FAISS index.** A `IndexFlatIP` (inner-product) index over L2-normalized vectors gives exact cosine-similarity search. At 377 vectors of 768 dimensions, the index fits in ~2 MB of RAM and returns results in <1 ms.
+**FAISS index.** A `IndexFlatIP` (inner-product) index over L2-normalized vectors gives exact cosine-similarity search. At 377 vectors of 384 dimensions, the index fits in ~1.5 MB of RAM and returns results in <0.5 ms.
 
 **Hybrid retrieval pipeline:**
 1. Semantic search over FAISS — retrieves top 25 by cosine similarity
@@ -43,7 +43,7 @@ Two anchor assessments (OPQ32r and Verify G+) are always appended to the retriev
 - Output format: strict JSON matching the `ChatResponse` schema
 - 7 few-shot examples covering: vague query, specific query, refinement, confirmation, off-topic refusal, legal refusal, and catalog-gap acknowledgment
 
-**JSON mode.** Gemini's `response_mime_type="application/json"` ensures the model always outputs parseable JSON, eliminating markdown wrapper issues. Temperature is set to 0.2 for factual, consistent recommendations.
+**JSON mode.** Groq's JSON object format ensures the model always outputs parseable JSON, eliminating markdown wrapper issues. Temperature is set to 0.2 for factual, consistent recommendations.
 
 **Previous recommendations injection.** The last assistant turn is parsed to extract existing recommendations, which are formatted and injected into the prompt. This allows the LLM to perform surgical refinements ("add AWS, drop REST") rather than starting over.
 
@@ -60,7 +60,7 @@ Two anchor assessments (OPQ32r and Verify G+) are always appended to the retriev
 - Injecting all 377 assessments: exceeded context limits and confused the model; top-25 retrieval was much better
 - Empty recommendations array instead of `null`: broke the evaluator's schema check (fixed by explicitly using `null`)
 
-**AI tools used:** Claude Sonnet (agentic coding for boilerplate generation and debugging); Gemini (LLM backbone and embeddings); manual review of all 10 sample conversations to derive ground-truth and calibrate prompts.
+**AI tools used:** Claude Sonnet (agentic coding for boilerplate generation and debugging); Groq Llama 3.3 (LLM backbone); SentenceTransformers (local embeddings); manual review of all 10 sample conversations to derive ground-truth and calibrate prompts.
 
 ---
 

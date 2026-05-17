@@ -53,9 +53,9 @@ class ChatRequest(BaseModel):
         return None
 
     def to_prompt_history(self) -> list[dict[str, str]]:
-        """Convert to Gemini-compatible message history format."""
+        """Convert to Groq-compatible message history format."""
         return [
-            {"role": "user" if m.role == "user" else "model", "parts": [m.content]}
+            {"role": "user" if m.role == "user" else "assistant", "content": m.content}
             for m in self.messages[:-1]  # Exclude last user message (sent separately)
         ]
 

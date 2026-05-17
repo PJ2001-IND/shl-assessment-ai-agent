@@ -9,11 +9,9 @@ pinned: false
 license: mit
 ---
 
-![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?style=flat-square&logo=fastapi)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)
-![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-orange?style=flat-square&logo=google)
-![HuggingFace](https://img.shields.io/badge/HuggingFace-Space-yellow?style=flat-square&logo=huggingface)
+![Groq](https://img.shields.io/badge/Groq-Llama_3.3_70B-orange?style=flat-square)
+![SentenceTransformers](https://img.shields.io/badge/SentenceTransformers-all--MiniLM--L6--v2-blue?style=flat-square)
+![Render](https://img.shields.io/badge/Render-Live-brightgreen?style=flat-square)
 
 > **A stateless conversational AI agent that takes hiring managers from vague intent to a grounded shortlist of SHL assessments.** — Built for the SHL AI Intern Assignment.
 
@@ -34,7 +32,7 @@ The agent manages multi-turn dialogue to:
 ## 🏗️ Architecture
 - **Stateless Design:** No databases or session cookies. Every API request includes the full conversation history.
 - **Strict Pydantic Schema:** The agent strictly outputs a validated `{"reply", "recommendations", "end_of_conversation"}` object.
-- **Vector Search (FAISS):** Fast semantic retrieval over 377 SHL catalog items using `text-embedding-004`.
+- **Vector Search (FAISS):** Fast semantic retrieval over 377 SHL catalog items using offline `all-MiniLM-L6-v2` embeddings (100% offline, zero network latency).
 - **Grounded Verification:** A post-generation fuzzy-matcher ensures that 100% of generated names and URLs exactly match the `shl_product_catalog.json`.
 
 ---
@@ -43,7 +41,7 @@ The agent manages multi-turn dialogue to:
 
 ### Prerequisites
 - Python 3.12+
-- Google Gemini API Key
+- Groq API Key
 
 ### Install
 ```bash
@@ -57,19 +55,19 @@ pip install -r requirements.txt
 ### Environment Setup
 Create a `.env` file in the root directory:
 ```env
-GEMINI_API_KEY=your_active_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
-PORT=7860
+GROQ_API_KEY=your_active_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-specdec
+PORT=8000
 ```
 
 ### Start Server
 ```bash
 # Start with Uvicorn
-uvicorn app:app --host 0.0.0.0 --port 7860 --reload
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
 # Or start with Docker
 docker build -t shl-agent .
-docker run -p 7860:7860 --env-file .env shl-agent
+docker run -p 8000:8000 --env-file .env shl-agent
 ```
 
 ---
@@ -135,7 +133,8 @@ shl-assessment-agent/
 | **Python 3.12** | Core programming language |
 | **FastAPI** | High-performance async web framework |
 | **Pydantic v2** | Strict API schema validation |
-| **Google Gemini SDK** | `gemini-2.5-flash` for reasoning; `text-embedding-004` for vectors |
+| **Groq SDK** | `llama-3.3-70b-specdec` for high-speed, grounded reasoning |
+| **SentenceTransformers** | `all-MiniLM-L6-v2` for 100% offline local query embeddings |
 | **FAISS** | High-speed, in-memory semantic vector search |
 | **Docker** | Containerization for easy deployment |
 
@@ -144,8 +143,7 @@ shl-assessment-agent/
 ## 👤 Author
 **Praasuk Jain**
 - GitHub: [@PJ2001-IND](https://github.com/PJ2001-IND)
-- Hugging Face Space: [praasukjain2001/shl-assessment-agent](https://huggingface.co/spaces/praasukjain2001/shl-assessment-agent)
-- Hugging Face Profile: [@praasukjain2001](https://huggingface.co/praasukjain2001)
+- Render Endpoint: [shl-assessment-agent-2cln.onrender.com](https://shl-assessment-agent-2cln.onrender.com)
 - LinkedIn: [praasuk-jain](https://www.linkedin.com/in/praasuk-jain-425b6b1a3/)
 
 ---

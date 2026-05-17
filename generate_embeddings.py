@@ -25,17 +25,7 @@ def main():
     logger.info("SHL Embedding Pre-Generator")
     logger.info("=" * 60)
 
-    # Check for API key
-    from config import GEMINI_API_KEY, EMBEDDINGS_CACHE_PATH
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
-        logger.error("GEMINI_API_KEY not set in .env — aborting.")
-        sys.exit(1)
-
-    # Check if cache already exists
-    if EMBEDDINGS_CACHE_PATH.exists():
-        logger.info(f"Cache already exists at {EMBEDDINGS_CACHE_PATH}")
-        logger.info("Delete it and re-run to regenerate. Exiting.")
-        sys.exit(0)
+    from config import EMBEDDINGS_CACHE_PATH
 
     logger.info("Loading catalog...")
     from catalog import catalog_index
