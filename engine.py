@@ -4,7 +4,7 @@ engine.py — Conversation engine (core logic)
 Responsibilities:
   1. Parse conversation history to extract context & intent
   2. Build search query and retrieve relevant assessments from catalog
-  3. Call Gemini LLM with injected catalog data
+  3. Call Groq LLM with injected catalog data
   4. Parse + validate LLM response against catalog
   5. Return a schema-compliant ChatResponse
 """

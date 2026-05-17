@@ -3,7 +3,7 @@ catalog.py — Catalog loading, normalization, embedding, and FAISS search
 
 Responsibilities:
   1. Load shl_product_catalog.json → list[AssessmentRecord]
-  2. Generate/cache Gemini embeddings for all 377 assessments
+  2. Generate/cache offline SentenceTransformers embeddings for all 377 assessments
   3. Build FAISS index for semantic search
   4. Provide search + metadata-filter functions
 """
