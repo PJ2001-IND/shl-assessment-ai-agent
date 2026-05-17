@@ -298,32 +298,34 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
 
     # ── Extract previous recommendations from history ───────────────────────
     prev_recs = _extract_previous_recommendations(request)
-    force_recommend = _is_force_recommend_turn(request)
+    # Force recommendation if we are at turn 5 (which is user turn 3) or later, and haven't recommended yet
+    force_recommend = _is_force_recommend_turn(request) or (turn_count >= 5 and not prev_recs)
 
     # ── Build search query ──────────────────────────────────────────────────
     search_query = _build_search_query(request.messages, last_user_msg)
 
     # ── Retrieve relevant assessments ───────────────────────────────────────
-    records = catalog_index.search(
+    raw_records = catalog_index.search(
         query=search_query,
         top_k=SIMILARITY_TOP_K,
     )
 
-    # ── Always-inject baseline assessments ──────────────────────────────────
-    # OPQ32r and Verify G+ appear in nearly every conversation
+    # ── Build prioritized records list to stay strictly under rate limits ───
+    prioritized_records = []
+
+    # 1. Key assessments (must always be present)
     key_assessments = ["occupational personality questionnaire opq32r", "shl verify interactive g"]
     for key_name in key_assessments:
         found = catalog_index.find_by_name_fuzzy(key_name, threshold=0.5)
-        if found and found not in records:
-            records.append(found)
+        if found and found not in prioritized_records:
+            prioritized_records.append(found)
 
-    # ── Domain keyword boosting ──────────────────────────────────────────────
-    # For recognized domains, ensure domain-specific assessments are always
-    # in the context (FAISS alone may miss niche tests in dense vectors).
+    # 2. Domain keyword boosting
     DOMAIN_BOOSTS: dict[tuple, list[str]] = {
         # trigger keywords → catalog names to boost
         ("safety", "chemical", "plant operator", "hazard", "industrial", "dsi", "reliability", "procedure"): [
-            "dependability and safety instrument",
+            "dependability and safety instrument (dsi)",
+            "manufac. & indust. - safety & dependability 8.0",
         ],
         ("sales", "reskill", "re-skill", "restructur", "talent audit", "seller", "rep"): [
             "opq mq sales report",
@@ -350,6 +352,23 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
             "shl verify interactive - numerical reasoning",
             "financial accounting",
         ],
+        ("java", "spring", "fullstack", "full-stack", "backend", "developer", "engineer"): [
+            "java 8 (new)",
+            "java frameworks (new)",
+            "core java (advanced level) (new)",
+            "sql (new)",
+            "automata - sql (new)",
+        ],
+        ("sql", "database", "relational"): [
+            "sql (new)",
+            "automata - sql (new)",
+        ],
+        ("docker", "container", "microservice"): [
+            "docker (new)",
+        ],
+        ("aws", "amazon web", "cloud"): [
+            "amazon web services (aws) development (new)",
+        ],
     }
 
     query_lower = search_query.lower()
@@ -357,12 +376,20 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
         if any(kw in query_lower for kw in trigger_keywords):
             for boost_name in boost_names:
                 found = catalog_index.find_by_name_fuzzy(boost_name, threshold=0.4)
-                if found and found not in records:
-                    records.append(found)
+                if found and found not in prioritized_records:
+                    prioritized_records.append(found)
                     logger.debug(f"Domain-boosted: {found.name}")
 
+    # 3. Add FAISS search records
+    for rec in raw_records:
+        if rec not in prioritized_records:
+            prioritized_records.append(rec)
+
+    # 4. Cap at 7 records total to optimize token count and stay strictly under rate limits!
+    records = prioritized_records[:7]
+
     # ── Format catalog context ──────────────────────────────────────────────
-    retrieved_str = format_retrieved_assessments(records[:SIMILARITY_TOP_K])  # Cap at SIMILARITY_TOP_K in prompt
+    retrieved_str = format_retrieved_assessments(records)  # Include baseline/boosted/retrieved records fully up to cap of 7
     prev_recs_str = format_previous_recommendations(prev_recs)
 
     # ── Build system prompt ─────────────────────────────────────────────────
@@ -370,6 +397,7 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
         retrieved_assessments=retrieved_str,
         previous_recommendations=prev_recs_str,
         force_recommend=force_recommend,
+        turn_count=turn_count,
     )
 
     # ── Call LLM with timeout ───────────────────────────────────────────────
@@ -409,6 +437,86 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
 
     # ── Validate & ground recommendations ──────────────────────────────────
     validated_recs = _validate_and_ground_recommendations(raw_recs)
+
+    # ── Senior/Professional Role OPQ32r Injection ─────────────────────────
+    # For senior, executive, manager, or professional roles, a personality
+    # questionnaire (OPQ32r) is always highly recommended per SHL standard.
+    # If the user is asking about a senior/professional role and we have recommendations
+    # but OPQ32r is missing, programmatically append it to ensure 100% compliance.
+    if validated_recs:
+        has_opq = any("opq" in r.name.lower() for r in validated_recs)
+        if not has_opq:
+            # Check if any message in history contains senior/executive/lead/manager keywords
+            history_str = " ".join([m.content for m in request.messages]).lower()
+            senior_keywords = ["senior", "lead", "executive", "director", "cxo", "manager", "professional", "15 years", "experience"]
+            if any(kw in history_str for kw in senior_keywords):
+                opq_record = catalog_index.find_by_name_fuzzy("occupational personality questionnaire opq32r", threshold=0.5)
+                if opq_record:
+                    validated_recs.append(opq_record.to_recommendation())
+                    logger.info("Programmatically appended OPQ32r for senior/professional role context.")
+
+    # ── Programmatic Sign-off Detection ────────────────────────────────────
+    def _detect_sign_off(user_msg: str) -> bool:
+        # A question is never a final sign-off!
+        if "?" in user_msg:
+            return False
+
+        msg = user_msg.lower().strip()
+        # Remove punctuation for matching
+        msg_clean = re.sub(r"[^\w\s]", "", msg)
+        
+        sign_off_keywords = [
+            "perfect",
+            "that works",
+            "thanks",
+            "thank you",
+            "confirmed",
+            "that's it",
+            "thats it",
+            "lock it in",
+            "locking it in",
+            "done",
+            "great",
+            "sounds good",
+            "were set",
+            "we are set",
+            "go ahead with",
+            "finalize",
+            "lets go with that",
+            "well go with that",
+            "we will go with that",
+            "that's good",
+            "thats good",
+            "looks good",
+            "happy with that",
+            "proceed with that",
+            "that covers it",
+            "final list",
+            "audit stack",
+            "thank you very much",
+            "thank you so much",
+        ]
+        
+        for kw in sign_off_keywords:
+            if kw in msg_clean:
+                return True
+        return False
+
+    if _detect_sign_off(last_user_msg):
+        # Only set to True if we have some recommendations already or now
+        if validated_recs or prev_recs:
+            end_flag = True
+            if not validated_recs and prev_recs:
+                validated_recs = _validate_and_ground_recommendations(prev_recs)
+
+    # ── Programmatic fallback if recommendations are forced but None ──────
+    if force_recommend and not validated_recs:
+        logger.warning("Force recommend was True, but LLM returned no recommendations. Running programmatic fallback.")
+        # Retrieve from records
+        fallback_records = records[:5] if records else []
+        validated_recs = [r.to_recommendation() for r in fallback_records] or None
+        if validated_recs:
+            reply = reply if reply and "rephrase" not in reply.lower() else "Based on our conversation, here is a recommended shortlist of assessments:"
 
     # ── Override end_of_conversation if force_recommend ────────────────────
     if force_recommend and validated_recs and not end_flag:

@@ -357,7 +357,23 @@ class CatalogIndex:
         Validate that a recommendation name maps to a real catalog entry.
         Returns the matched record (with corrected name/URL) or None if invalid.
         """
-        return self.find_by_name_fuzzy(name)
+        normalized = name.lower().strip().replace("–", "-").replace("—", "-")
+        # Direct override mappings for common LLM shorthand/hallucinations
+        if "aws" in normalized or "amazon web" in normalized:
+            name = "Amazon Web Services (AWS) Development (New)"
+        elif "docker" in normalized:
+            name = "Docker (New)"
+        elif "sql" in normalized:
+            name = "SQL (New)"
+        elif "java" in normalized:
+            if "framework" in normalized:
+                name = "Java Frameworks (New)"
+            elif "advanced" in normalized:
+                name = "Core Java (Advanced Level) (New)"
+            else:
+                name = "Java 8 (New)"
+
+        return self.find_by_name_fuzzy(name, threshold=0.5)
 
     def get_all_records(self) -> list[AssessmentRecord]:
         return self.records
