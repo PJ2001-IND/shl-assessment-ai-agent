@@ -10,6 +10,7 @@ BASE_URL = "http://localhost:8000"
 RESULTS = []
 
 def chat(messages):
+    time.sleep(3.0)  # Avoid hitting Groq free tier rate limits (RPM / TPM)
     r = requests.post(f"{BASE_URL}/chat", json={"messages": messages}, timeout=120)
     r.raise_for_status()
     return r.json()
