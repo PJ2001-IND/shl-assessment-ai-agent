@@ -128,6 +128,9 @@ class AssessmentRecord(BaseModel):
             langs += f" (+{len(self.languages) - 5} more)"
         levels = ", ".join(self.job_levels)
         duration_str = self.duration if self.duration else "—"
+        desc = self.description
+        if len(desc) > 250:
+            desc = desc[:250] + "..."
         return (
             f"Name: {self.name}\n"
             f"URL: {self.url}\n"
@@ -136,7 +139,7 @@ class AssessmentRecord(BaseModel):
             f"Job Levels: {levels}\n"
             f"Languages: {langs}\n"
             f"Adaptive: {'Yes' if self.adaptive else 'No'}\n"
-            f"Description: {self.description}\n"
+            f"Description: {desc}\n"
         )
 
 
