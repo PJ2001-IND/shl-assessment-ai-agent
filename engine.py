@@ -139,6 +139,8 @@ async def _call_llm(
     # Send system prompt + last user message together
     combined_message = f"{system_prompt}\n\n---\nUser's current message: {last_user_message}"
 
+    logger.info(f"DEBUG: Using API Key starting with: '{GEMINI_API_KEY[:5]}'...")
+
     loop = asyncio.get_event_loop()
     max_retries = 3
 
