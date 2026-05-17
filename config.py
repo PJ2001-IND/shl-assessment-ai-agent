@@ -33,7 +33,7 @@ RECOMMEND_BY_TURN: int = 7
 # ── Server ─────────────────────────────────────────────────────────────────
 HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8000"))
-LLM_TIMEOUT_SECONDS: float = 25.0   # Leave buffer for rate limit retries
+LLM_TIMEOUT_SECONDS: float = 28.0   # Leave buffer for rate limit retries
 
 # ── Test Type Code Mapping (keys → single letter codes) ───────────────────
 # Derived from sample conversations (C1-C10)
