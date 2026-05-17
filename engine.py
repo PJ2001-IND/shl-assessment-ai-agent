@@ -362,7 +362,7 @@ async def process_chat(request: ChatRequest) -> ChatResponse:
                     logger.debug(f"Domain-boosted: {found.name}")
 
     # ── Format catalog context ──────────────────────────────────────────────
-    retrieved_str = format_retrieved_assessments(records[:20])  # Cap at 20 in prompt
+    retrieved_str = format_retrieved_assessments(records[:SIMILARITY_TOP_K])  # Cap at SIMILARITY_TOP_K in prompt
     prev_recs_str = format_previous_recommendations(prev_recs)
 
     # ── Build system prompt ─────────────────────────────────────────────────
