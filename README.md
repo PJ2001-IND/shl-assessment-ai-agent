@@ -56,7 +56,7 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory:
 ```env
 GROQ_API_KEY=your_active_groq_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=llama-3.1-8b-instant
 PORT=8000
 ```
 
@@ -133,7 +133,7 @@ shl-assessment-agent/
 | **Python 3.12** | Core programming language |
 | **FastAPI** | High-performance async web framework |
 | **Pydantic v2** | Strict API schema validation |
-| **Groq SDK** | `llama-3.3-70b-versatile` for high-speed, grounded reasoning |
+| **Groq SDK** | `llama-3.1-8b-instant` for high-speed, grounded reasoning |
 | **SentenceTransformers** | `all-MiniLM-L6-v2` for 100% offline local query embeddings |
 | **FAISS** | High-speed, in-memory semantic vector search |
 | **Docker** | Containerization for easy deployment |

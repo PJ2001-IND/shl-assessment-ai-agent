@@ -15,7 +15,7 @@ INDEX_CACHE_PATH = BASE_DIR / ".faiss_index.bin"
 
 # ── LLM / Embedding ────────────────────────────────────────────────────────
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # ── Retrieval ──────────────────────────────────────────────────────────────
 SIMILARITY_TOP_K: int = 12          # Fetch enough candidates, optimized to fit within free-tier Groq TPM limits
