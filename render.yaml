@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: shl-assessment-agent
+    env: docker
+    region: ohio
+    plan: free
+    branch: main
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: PORT
+        value: 8000
