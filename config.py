@@ -18,7 +18,7 @@ GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # ── Retrieval ──────────────────────────────────────────────────────────────
-SIMILARITY_TOP_K: int = 25          # Fetch more from FAISS, then filter/rank
+SIMILARITY_TOP_K: int = 12          # Fetch enough candidates, optimized to fit within free-tier Groq TPM limits
 MAX_RECOMMENDATIONS: int = 10       # Hard cap per API spec
 MIN_RECOMMENDATIONS: int = 1
 
