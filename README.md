@@ -11,7 +11,7 @@ license: mit
 
 ![Groq](https://img.shields.io/badge/Groq-Llama_3.3_70B-orange?style=flat-square)
 ![SentenceTransformers](https://img.shields.io/badge/SentenceTransformers-all--MiniLM--L6--v2-blue?style=flat-square)
-![Render](https://img.shields.io/badge/Render-Live-brightgreen?style=flat-square)
+![Hugging Face](https://img.shields.io/badge/Hugging_Face-Spaces-yellow?style=flat-square)
 
 > **A stateless conversational AI agent that takes hiring managers from vague intent to a grounded shortlist of SHL assessments.** — Built for the SHL AI Intern Assignment.
 
@@ -45,8 +45,8 @@ The agent manages multi-turn dialogue to:
 
 ### Install
 ```bash
-git clone https://github.com/PJ2001-IND/shl-assessment-agent.git
-cd shl-assessment-agent
+git clone https://github.com/PJ2001-IND/shl-assessment-ai-agent.git
+cd shl-assessment-ai-agent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -108,7 +108,7 @@ python test_suite.py
 
 ## 📁 Project Structure
 ```
-shl-assessment-agent/
+shl-assessment-ai-agent/
 ├── .env.example             # Template for environment variables
 ├── .embeddings_cache.npy    # Pre-computed FAISS embeddings (for fast cold-starts)
 ├── README.md                # This file
@@ -143,7 +143,7 @@ shl-assessment-agent/
 ## 👤 Author
 **Praasuk Jain**
 - GitHub: [@PJ2001-IND](https://github.com/PJ2001-IND)
-- Render Endpoint: [shl-assessment-agent-2cln.onrender.com](https://shl-assessment-agent-2cln.onrender.com)
+- Hugging Face Space: [praasukjain2001-shl-assessment-agent](https://praasukjain2001-shl-assessment-agent.hf.space)
 - LinkedIn: [praasuk-jain](https://www.linkedin.com/in/praasuk-jain-425b6b1a3/)
 
 ---
